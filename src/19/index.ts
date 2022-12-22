@@ -39,6 +39,7 @@ const data = Load("src/19/input.txt");
 // const data = Load("src/19/sample.txt");
 
 
+/** This algorithm is heavily unoptimized... */
 const compute_reward = (TIME: number, { id, costs }: Blueprint): number => {
 
     /** Map<M, number> */

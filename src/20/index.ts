@@ -29,7 +29,6 @@ const mixer = (ptrs: Group[], nums: number[]) => {
 
         let stop = (idx + val) % H;
         if (stop < 0) stop += H; // Fix js-negative-modulus
-        // while (stop > H) stop -= H;
 
         for (let i = idx; i > stop; i--) {
             set(i, nums[i - 1]);
@@ -43,18 +42,18 @@ const mixer = (ptrs: Group[], nums: number[]) => {
 };
 
 const unpack = (ptrs: Group[], nums: number[]) => {
-    const L = data.length;
-
-    // [0, 1, 2, 3, 4, 5, 6][7, 8, 9, 10]
-    /** Cyclic indexing */
-    const mod = (idx: number) => (idx + L) % L;
-
     // Points of interest
     const where = [1000, 2000, 3000] as const;
+
+    // Find index of 0
     const base = nums.findIndex(v => ptrs[v].val === 0);
+    const L = data.length;
+
+    // Sum points of interest
     let total = 0;
     for (const p of where) {
-        const idx = mod(p + base);
+        // Cyclic index
+        const idx = (p + base) % L;
         const value = ptrs[nums[idx]].val;
         console.log("at:", p, "=>", value)
         total += value;
@@ -66,6 +65,7 @@ export const Part1 = () => {
     const [ptrs, nums] = setup(data);
     mixer(ptrs, nums);
     return unpack(ptrs, nums);
+    // 6712
 };
 
 export const Part2 = () => {
@@ -73,4 +73,5 @@ export const Part2 = () => {
     const [ptrs, nums] = setup(data.map(v => v * KEY));
     for (let i = 0; i < 10; i++) mixer(ptrs, nums);
     return unpack(ptrs, nums);
+    // 1595584274798
 };
