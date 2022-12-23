@@ -61,6 +61,9 @@ const Load = (file: string) => {
 const data = Load("src/22/input.txt");
 // const data = Load("src/22/sample.txt");
 
+// Disable printing of progress
+const NO_PAINT = true;
+
 
 // Simple flat edge-warping board
 export const Part1 = () => {
@@ -334,6 +337,11 @@ export const Part2 = () => {
         () => [px, py - 1],
     ];
 
+    const $ = <T>(msg: string, val: T) => {
+        console.log(msg);
+        return val;
+    };
+
     // Travel (Dir -> Dir -> offset)
     const travel: Record<Dir, Record<Dir, () => [number, number]>> = [
         // R: 0, >
@@ -378,11 +386,10 @@ export const Part2 = () => {
             // L: 2, <
             () => [S, offset(px)],
             // U: 3, ^
-            () => [mirror(px), S], // Identity
+            () => [offset(px), S], // Identity
         ],
     ];
 
-    const NO_PAINT = true;
     const paint = run(() => {
         if (NO_PAINT) return () => void 0;
         const X = sx * size;
@@ -423,9 +430,9 @@ export const Part2 = () => {
             const [dx, dy] = travel[dir][entry]();
             const nx = zx + dx;
             const ny = zy + dy;
-            // console.log({ F: from.id, D: str[dir], x: offset(px), y: offset(py) });
-            // console.log({ T: to.id, D: str[entry], x: offset(nx), y: offset(ny) });
-            // console.log();
+            console.log({ F: from.id, D: str[dir], x: offset(px), y: offset(py) });
+            console.log({ T: to.id, D: str[entry], x: offset(nx), y: offset(ny) });
+            console.log({ size });
             // Try to move here (we also might get turned around)
             if (open(nx, ny)) {
                 paint();
@@ -450,6 +457,9 @@ export const Part2 = () => {
     }
     // Final paint
     paint();
+    for (const row of grid) {
+        console.log(row);
+    }
 
     // Compute Password
     const row = py + 1;
