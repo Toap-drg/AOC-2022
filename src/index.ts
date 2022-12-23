@@ -1,4 +1,3 @@
-import { isPromise } from "util/types";
 import * as fs from "fs";
 import { read } from "./utils";
 

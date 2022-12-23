@@ -9,7 +9,6 @@ export const read = (...filepath: string[]) => {
     return fs
         .readFileSync(path.resolve(...filepath))
         .toString()
-        .trim()
         .replaceAll("\r", "");
 };
 
