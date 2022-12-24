@@ -1,184 +1,166 @@
-import { Key } from "readline";
 import { Enum, read } from "../utils";
+import { Grid, look, move } from "./grid";
 
 const Tok = Enum(".", "#")
 
-type P = { x: number, y: number};
+type P = { x: number, y: number };
 
 const Load = (file: string) => read(file).split("\n").map(
-    (line, x) => line.split("").map(
-        (token, y) => Tok.$parse(token) === "#" ? { x, y } : false
+    (line, y) => line.split("").map(
+        (token, x) => Tok.$parse(token) === "#" ? { x, y } : false
     ).filter((v) => v)
 ).flat() as P[];
 
 // const data = Load("src/23/input.txt");
-const data = Load("src/23/sample.txt");
-
-/** Minmax a collection of numbers */
-const minmax = () => {
-    let min = Number.MAX_SAFE_INTEGER;
-    let max = Number.MIN_SAFE_INTEGER;
-    return {
-        check(val: number) {
-            if (val < min) min = val;
-            if (val > max) max = val;
-        },
-        get min() {
-            return min;
-        },
-        get max() {
-            return max;
-        },
-        get size() {
-            return max - min + 1;
-        },
-        span(): [number, number] {
-            return [min, max + 1];
-        },
-    };
-};
-
-type minmax = ReturnType<typeof minmax>;
-
-
-const grid = (X: minmax, Y: minmax) => {
-    const G = new Uint8Array(X.size * Y.size);
-    // Displacement & Hashing
-    const zx = X.min;
-    const zy = Y.min;
-    const sx = X.size;
-    const P = (x: number, y: number) => (x - zx) + (y - zy) * sx;
-    return {
-        inc: (x: number, y: number) => G[P(x, y)]++,
-        dec: (x: number, y: number) => G[P(x, y)]--,
-        get: (x: number, y: number) => G[P(x, y)],
-        unwrap: () => G,
-    };
-};
+// const data = Load("src/23/sample.txt");
+const data = Load("src/23/small.txt");
 
 const Compass = Enum("N", "E", "S", "W", "X");
 type Compass = Enum<typeof Compass>;
 
-// Naive spacial hasher
-const spatial = () => {
-    // x -> y -> count
-    const M = new Map<number, Map<number, number>>();
-
-    // Controls
-    return {
-        inc(x: number, y: number) {
-            const R = M.get(x);
-            if (R) {
-                const V = R.get(y) ?? 0;
-                R.set(y, 1 + V);
-            } else {
-                M.set(x, new Map([[y, 1]]));
-            }
-        },
-        get(x: number, y: number) {
-            return M.get(x)?.get(y) ?? 0;
-        }
-    };
+const minmax = (data: P[]) => {
+    let lx, hx, ly, hy;
+    lx = ly = Number.MAX_SAFE_INTEGER;
+    hx = hy = Number.MIN_SAFE_INTEGER;
+    for (const { x, y } of data) {
+        if (x < lx) lx = x;
+        if (x > hx) hx = x;
+        if (y < ly) ly = y;
+        if (y > hy) hy = y;
+    }
+    return [lx, hx, ly, hy]
 };
+
 
 export const Part1 = () => {
     // Clone the data
-    const D = data.map(({x, y}) => ({x, y, d: Compass.$parse("X")}));
-    type Elf = typeof D[number];
+    const D = data.map(({ x, y }) => ({ x, y, d: Compass.$parse("X") }));
 
-    const X = minmax();
-    const Y = minmax();
+    const prev = new Grid();
+    const next = new Grid();
 
     // Load initial size
-    for (const {x, y} of D) {
-        X.check(x);
-        Y.check(y);
-    }
+    let [lx, hx, ly, hy] = minmax(D);
 
-    let pos = grid(X, Y);
-    let propose = grid(X, Y);
+    // [INITIAL] N -> S -> W -> E
+    const proposals: Exclude<Compass, 'X'>[] = ['N', 'S', 'W', 'E'];
 
-    // Register positions
-    for (const {x, y} of D) {
-        pos.inc(x, y);
-    }
+    const register = () => {
+        // Clear grid
+        prev.reset(lx, hx, ly, hy);
 
-    // Sanity check
-    if (pos.unwrap().includes(2)) {
-        throw new Error("Position registered twice");
-    }
+        // Register positions
+        for (const { x, y } of D) {
+            prev.inc(x, y);
+        }
 
-    type Proposal = (e: Elf) => boolean;
-    const check: Proposal[] = [
-        // N
-        (p) => {
-            const L = p.x - 1;
-            const H = p.x + 1;
-            const y = p.y - 1;
-            // Check 3 west cells
-            for (let x = L; x <= H; x++) {
-                if (pos.get(x, y)) return false;
-            }
-            // Propose west
-            p.d = "N";
-            propose.inc(p.x, y);
-            return true;
-        },
-        // E
-        (p) => {
-            const L = p.y - 1;
-            const H = p.y + 1;
-            const x = p.x + 1;
-            // Check 3 west cells
-            for (let y = L; y <= H; y++) {
-                if (pos.get(x, y)) return false;
-            }
-            // Propose west
-            p.d = "E";
-            propose.inc(x, p.y);
-            return true;
-        },
-        // S
-        (p) => {
-            const L = p.x - 1;
-            const H = p.x + 1;
-            const y = p.y + 1;
-            // Check 3 west cells
-            for (let x = L; x <= H; x++) {
-                if (pos.get(x, y)) return false;
-            }
-            // Propose west
-            p.d = "S";
-            propose.inc(p.x, y);
-            return true;
-        },
-        // W
-        (p) => {
-            const L = p.y - 1;
-            const H = p.y + 1;
-            const x = p.x - 1;
-            // Check 3 west cells
-            for (let y = L; y <= H; y++) {
-                if (pos.get(x, y)) return false;
-            }
-            // Propose west
-            p.d = "W";
-            propose.inc(x, p.y);
-            return true;
-        },
-    ];
+        // Sanity check
+        if (prev.unwrap().includes(2)) {
+            throw new Error("Position registered twice");
+        }
+    };
 
-    for (const e of D) {
-        // Check if proposal exists
-        const ok = check.find(fn => fn(e));
-        // No proposal
-        if (!ok) e.d = "X";
-
+    const ROUNDS = 4 // 10;
+    for (let i = 0; i < ROUNDS; i++) {
         // dbg
-        console.log(e);
+        console.log({
+            X: [lx, hx, hx - lx + 1],
+            Y: [ly, hy, hy - ly + 1],
+        });
+
+        register();
+
+        // Debug
+        console.log(`=== Round ${i} ===` + prev);
+
+        // Clear grid
+        next.reset(lx, hx, ly, hy);
+
+        // Let all elves propose their next position
+        for (const e of D) {
+            const { x, y } = e;
+
+            const X = x;
+            const Y = y;
+            for (let x = X - 1; x < X + 2; x++) {
+                let r = "";
+                for (let y = Y - 1; y < Y + 2; y++) {
+                    r += prev.get(x, y);
+                }
+                console.log(r);
+            }
+
+            const L = prev.adjecent(x, y);
+            console.log({x, y}, "=> " + L.join());
+
+            // Stand still if isolated
+            if (!L.includes(1)) {
+                e.d = "X";
+                continue;
+            }
+
+            // Check if one proposal may go throught
+            for (const P of proposals) {
+                const N = L.slice(...look[P]);
+                console.log(P, N);
+                // reject if elf in direction
+                if (N.includes(1)) continue;
+                const [dx, dy] = move[P];
+                next.inc(x + dx, y + dy);
+                e.d = P;
+                break;
+            }
+
+            // dbg
+            console.log(e);
+        }
+
+        console.log("Asks" + next);
+
+        // Shrink bounds
+        // X.shrink();
+        // Y.shrink();
+
+        // let all elves move & expand bounds
+        for (const e of D) {
+            // Should not move
+            if (e.d === "X") continue;
+
+            // get move
+            const [dx, dy] = move[e.d];
+
+            // Cannot move here, more than one is planning it
+            if (next.get(e.x + dx, e.y + dy) !== 1) continue;
+
+            // Move
+            e.x += dx;
+            e.y += dy;
+
+            // Update bounds
+            const { x, y } = e;
+            /**/ if (y < ly) ly = y;
+            else if (x > hx) hx = x;
+            else if (y > hy) hy = y;
+            else if (x < lx) lx = x;
+        }
+
+        // Roll movement
+        proposals.push(proposals.shift()!);
     }
 
-    return;
+
+    [lx, hx, ly, hy] = minmax(D);
+
+    // Register current positions
+    register();
+
+    // Debug
+    console.log(`=== Final Round ===` + prev);
+
+    // Count empty spaces
+    const count = prev.unwrap().reduce((count, v) => count + (+!v), 0);
+    // Remove border
+    return count - prev.border();
 };
 
 export const Part2 = () => {
