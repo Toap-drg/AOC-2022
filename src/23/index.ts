@@ -11,9 +11,9 @@ const Load = (file: string) => read(file).split("\n").map(
     ).filter((v) => v)
 ).flat() as P[];
 
-// const data = Load("src/23/input.txt");
+const data = Load("src/23/input.txt");
 // const data = Load("src/23/sample.txt");
-const data = Load("src/23/small.txt");
+// const data = Load("src/23/small.txt");
 
 const Compass = Enum("N", "E", "S", "W", "X");
 type Compass = Enum<typeof Compass>;
@@ -60,7 +60,7 @@ export const Part1 = () => {
         }
     };
 
-    const ROUNDS = 4 // 10;
+    const ROUNDS = 10;
     for (let i = 0; i < ROUNDS; i++) {
         // dbg
         console.log({
@@ -80,18 +80,7 @@ export const Part1 = () => {
         for (const e of D) {
             const { x, y } = e;
 
-            const X = x;
-            const Y = y;
-            for (let x = X - 1; x < X + 2; x++) {
-                let r = "";
-                for (let y = Y - 1; y < Y + 2; y++) {
-                    r += prev.get(x, y);
-                }
-                console.log(r);
-            }
-
             const L = prev.adjecent(x, y);
-            console.log({x, y}, "=> " + L.join());
 
             // Stand still if isolated
             if (!L.includes(1)) {
@@ -102,7 +91,6 @@ export const Part1 = () => {
             // Check if one proposal may go throught
             for (const P of proposals) {
                 const N = L.slice(...look[P]);
-                console.log(P, N);
                 // reject if elf in direction
                 if (N.includes(1)) continue;
                 const [dx, dy] = move[P];
@@ -110,12 +98,7 @@ export const Part1 = () => {
                 e.d = P;
                 break;
             }
-
-            // dbg
-            console.log(e);
         }
-
-        console.log("Asks" + next);
 
         // Shrink bounds
         // X.shrink();
@@ -163,7 +146,111 @@ export const Part1 = () => {
     return count - prev.border();
 };
 
+const UP = (v: number) => Math.ceil(v / 10) * 10;
+const DN = (v: number) => Math.floor(v / 10) * 10;
+
 export const Part2 = () => {
-    return;
+    // Clone the data
+    const D = data.map(({ x, y }) => ({ x, y, d: Compass.$parse("X") }));
+
+    const prev = new Grid();
+    const next = new Grid();
+
+    // Load initial size
+    let [lx, hx, ly, hy] = minmax(D);
+
+    // [INITIAL] N -> S -> W -> E
+    const proposals: Exclude<Compass, 'X'>[] = ['N', 'S', 'W', 'E'];
+
+    const register = () => {
+        // Clear grid
+        prev.reset(lx, hx, ly, hy);
+
+        // Register positions
+        for (const { x, y } of D) {
+            prev.inc(x, y);
+        }
+
+        // Sanity check
+        if (prev.unwrap().includes(2)) {
+            throw new Error("Position registered twice");
+        }
+    };
+
+    for (let round = 1;; round++) {
+        // Make grid scale at steps of 10
+        lx = DN(lx); hx = UP(hx);
+        ly = DN(ly); hy = UP(hy);
+
+        register();
+
+        // Debug
+        // console.log(`=== Round ${i} ===` + prev);
+
+        // Clear grid
+        next.reset(lx, hx, ly, hy);
+
+        let all_isolated = true;
+
+        // Let all elves propose their next position
+        for (const e of D) {
+            const { x, y } = e;
+
+            const L = prev.adjecent(x, y);
+
+            // Stand still if isolated
+            if (!L.includes(1)) {
+                e.d = "X";
+                continue;
+            }
+            // Want's to move
+            all_isolated = false;
+
+            // Check if one proposal may go throught
+            for (const P of proposals) {
+                const N = L.slice(...look[P]);
+                // reject if elf in direction
+                if (N.includes(1)) continue;
+                const [dx, dy] = move[P];
+                next.inc(x + dx, y + dy);
+                e.d = P;
+                break;
+            }
+        }
+
+        
+        if (all_isolated) return round;
+
+
+        // Shrink bounds
+        // X.shrink();
+        // Y.shrink();
+
+        // let all elves move & expand bounds
+        for (const e of D) {
+            // Should not move
+            if (e.d === "X") continue;
+
+            // get move
+            const [dx, dy] = move[e.d];
+
+            // Cannot move here, more than one is planning it
+            if (next.get(e.x + dx, e.y + dy) !== 1) continue;
+
+            // Move
+            e.x += dx;
+            e.y += dy;
+
+            // Update bounds
+            const { x, y } = e;
+            /**/ if (y < ly) ly = y;
+            else if (x > hx) hx = x;
+            else if (y > hy) hy = y;
+            else if (x < lx) lx = x;
+        }
+
+        // Roll movement
+        proposals.push(proposals.shift()!);
+    }
 };
 
