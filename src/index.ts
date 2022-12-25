@@ -1,3 +1,4 @@
+import 'source-map-support/register';
 import * as fs from "fs";
 import { read } from "./utils";
 
